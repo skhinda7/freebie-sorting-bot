@@ -1,7 +1,9 @@
 const { Client, IntentsBitField, EmbedBuilder, WebhookClient } = require('discord.js');
 const dotenv = require('dotenv');
-const accounts = require('./accounts.json');
-const userList = require('./blaze-users.json');
+const fs = require('fs');
+const csv = require('csv-parser');
+const csvFilePath = 'accounts.csv'; // Replace with your CSV file path
+var userSheet; // Array to store the parsed data
 
 dotenv.config();
 
@@ -11,8 +13,34 @@ const blazeFree = new WebhookClient({ id: process.env.BLAZE_FREE_ID, token: proc
 const blazePaid = new WebhookClient({ id: process.env.BLAZE_PAID_ID, token: process.env.BLAZE_PAID_TOKEN });
 const happy = new WebhookClient({ id: process.env.HAPPY_ID, token: process.env.HAPPY_TOKEN });
 const pia = new WebhookClient({ id: process.env.PIA_ID, token: process.env.PIA_TOKEN });
+const freebieHub = new WebhookClient({ id: process.env.HUB_ID, token: process.env.HUB_TOKEN });
 const error = new WebhookClient({ id: process.env.ERROR_ID, token: process.env.ERROR_TOKEN });
+const personal = new WebhookClient({ id: process.env.PERSONAL_ID, token: process.env.PERSONAL_TOKEN });
+const skhindaId = process.env.SKHINDA_ID;
 
+function parseCSV() {
+    userSheet = [];
+    fs.createReadStream(csvFilePath)
+        .pipe(csv())
+        .on('data', (row) => {
+            // Push each row (record) into the array as an object
+            userSheet.push(row);
+        })
+        .on('end', () => {
+            // CSV parsing is complete
+            console.log('Accounts parsed and ready to use!');
+            personal.send({
+                username: 'Freebie Sorter',
+                content: `Accounts parsed and ready to use!`,
+            });
+        })
+        .on('error', (error) => {
+            // Handle any errors that may occur during parsing
+            console.error('Error parsing CSV:', error);
+        });
+}
+
+parseCSV();
 
 const client = new Client({
     intents: [
@@ -20,12 +48,12 @@ const client = new Client({
         IntentsBitField.Flags.GuildMembers,
         IntentsBitField.Flags.GuildMessages,
         IntentsBitField.Flags.MessageContent,
+        IntentsBitField.Flags.DirectMessages,
     ]
 })
 
 client.on('ready', () => {
     console.log(`Logged in as ${client.user.tag}, ready to use!`);
-
     client.user.setPresence({
         status: "online",  // You can show online, idle... Do not disturb is dnd
         activity: {
@@ -49,9 +77,11 @@ client.on('messageCreate', (message) => {
                     else if (orderInfo[0] === 2) {
                         sendEmbed('personal', returnEmbed.fields[1].value, returnEmbed, orderInfo[1], 'enven');
                     }
+                    else if (orderInfo[0] === 3) {
+                        sendEmbed('freebiehub', returnEmbed.fields[1].value, returnEmbed, orderInfo[1], 'enven');
+                    }
                 }
-                else { // Refract Checkout
-
+                else { // Refract Checkout */
                     var checkoutEmail = (returnEmbed.fields[9].value.replaceAll('|', '')).trim();
                     var orderInfo = sortOrder(checkoutEmail);
                     if (orderInfo[0] === 1) {
@@ -59,6 +89,9 @@ client.on('messageCreate', (message) => {
                     }
                     else if (orderInfo[0] === 2) {
                         sendEmbed('personal', returnEmbed.fields[6].value, returnEmbed, orderInfo[1], 'refract');
+                    }
+                    else if (orderInfo[0] === 3) {
+                        sendEmbed('freebiehub', returnEmbed.fields[6].value, returnEmbed, orderInfo[1], 'refract');
                     }
                 }
             } catch (e) {
@@ -77,22 +110,81 @@ client.on('messageCreate', (message) => {
     }
 })
 
-// sortOrder - Checks Blaze and Personal account lists to see who the order belongs to.
-function sortOrder(email) {
-    let foundUser = false;
-    for (let i = 0; i < userList.user.length; i++) {
-        if (userList.user[i].email.toLowerCase() === email.toLowerCase()) {
-            foundUser = true;
-            return [1, `<@${userList.user[i].discord}>`];
-        }
-    }
-    if (!foundUser) {
-        for (let i = 0; i < accounts.user.length; i++) {
-            if (accounts.user[i].email.toLowerCase() === email.toLowerCase()) {
-                return [2, `<@${accounts.user[i].discord}>`];
+client.on('messageCreate', (message) => {
+    if (message.channel.id === '1150503181072207903') {
+        const args = message.content.split(' ');
+        if (args[0] === '!e') {
+            var result = sortOrder(args[1]);
+            personal.send({
+                username: 'Freebie Sorter',
+                content: `Linked Discord: ${result[1]}`,
+            });
+
+        } else if (args[0] === '!d') {
+            var result = sortOrder(args[1]);
+            personal.send({
+                username: 'Freebie Sorter',
+                content: `Linked Email: ${result[1]}`,
+            });
+        } else if (args[0] === '!add') {
+            try {
+                personal.send({
+                    username: 'Freebie Sorter',
+                    content: `\`\`\`Account information\`\`\`\nEmail: \`\`${args[1]}\`\`\nDiscord: <@!${args[2]}>\nGroup: \`\`${args[3]}\`\``,
+                });
+                addRowToCSV(args[3], args[1], args[2]);
+            } catch (e) {
+                personal.send({
+                    username: 'Freebie Sorter',
+                    content: `${e.message}`,
+                });
             }
         }
     }
+})
+
+// sortOrder - Checks Blaze and Personal account lists to see who the order belongs to.
+function sortOrder(args) {
+    var group = 0;
+    if (args.includes('@')) {
+        for (let i = 0; i < userSheet.length; i++) {
+            if (userSheet[i].email === args.toLowerCase()) {
+                if (userSheet[i].group === 'blaze') {
+                    group = 1;
+                }
+                else if (userSheet[i].group === 'freebiehub') {
+                    group = 3;
+                }
+                else {
+                    group = 2;
+                }
+                return [group, `<@${userSheet[i].discord}>`];
+            }
+        }
+    } else {
+        for (let i = 0; i < userSheet.length; i++) {
+            if (userSheet[i].discord === args.trim()) {
+                return [i, `${userSheet[i].email}`];
+            }
+        }
+    }
+    return [0, 'User not found'];
+}
+
+
+function addRowToCSV(group, email, discordId) {
+    // Create a new row with the provided data
+    const newRow = `${group},${email},${discordId}\n`;
+
+    // Append the new row to the CSV file
+    fs.appendFile(csvFilePath, newRow, 'utf8', (err) => {
+        if (err) {
+            console.error(err);
+        } else {
+            console.log('New account has been added.');
+            parseCSV();
+        }
+    });
 }
 
 
@@ -212,6 +304,14 @@ function sendEmbed(client, discount, returnEmbed, discord, bot) {
                 embeds: [filterEmbed.setTitle(`Checkout for Pia! :cry:`)],
             });
         }
+    } else if (client === 'freebiehub') {
+        filterEmbed.setColor(8454016);
+        console.log('Freebie Hub Checkout!');
+        freebieHub.send({
+            username: 'Freebie Hub Checkout',
+            content: `|| ${discord} ||`,
+            embeds: [filterEmbed.setTitle(`Checkout! :partying_face:`)]
+        })
     }
 
 }
