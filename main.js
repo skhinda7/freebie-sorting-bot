@@ -310,7 +310,7 @@ function sendEmbed(client, discount, returnEmbed, discord, bot) {
         freebieHub.send({
             username: 'Freebie Hub Checkout',
             content: `|| ${discord} ||`,
-            embeds: [filterEmbed.setTitle(`Checkout! :partying_face:`)]
+            embeds: [filterEmbed.setTitle(`Checkout! :partying_face:`).setFooter(`Twitter | @TheFreebieHub | Powered by Skhinda`)]
         })
     }
 
