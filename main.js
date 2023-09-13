@@ -13,6 +13,7 @@ const blazeFree = new WebhookClient({ id: process.env.BLAZE_FREE_ID, token: proc
 const blazePaid = new WebhookClient({ id: process.env.BLAZE_PAID_ID, token: process.env.BLAZE_PAID_TOKEN });
 const happy = new WebhookClient({ id: process.env.HAPPY_ID, token: process.env.HAPPY_TOKEN });
 const pia = new WebhookClient({ id: process.env.PIA_ID, token: process.env.PIA_TOKEN });
+const jagdeep = new WebhookClient({ id: process.env.JAGDEEP_ID, token: process.env.JAGDEEP_TOKEN });
 const freebieHub = new WebhookClient({ id: process.env.HUB_ID, token: process.env.HUB_TOKEN });
 const error = new WebhookClient({ id: process.env.ERROR_ID, token: process.env.ERROR_TOKEN });
 const personal = new WebhookClient({ id: process.env.PERSONAL_ID, token: process.env.PERSONAL_TOKEN });
@@ -112,33 +113,44 @@ client.on('messageCreate', (message) => {
 
 client.on('messageCreate', (message) => {
     if (message.channel.id === '1150503181072207903') {
-        const args = message.content.split(' ');
-        if (args[0] === '!e') {
-            var result = sortOrder(args[1]);
-            personal.send({
-                username: 'Freebie Sorter',
-                content: `Linked Discord: ${result[1]}`,
-            });
+        try {
+            const args = message.content.split(' ');
+            if (args[0] === '!e') {
+                var result = sortOrder(args[1]);
+                personal.send({
+                    username: 'Freebie Sorter',
+                    content: `Linked Discord: ${result[1]}`,
+                });
 
-        } else if (args[0] === '!d') {
-            var result = sortOrder(args[1]);
-            personal.send({
-                username: 'Freebie Sorter',
-                content: `Linked Email: ${result[1]}`,
-            });
-        } else if (args[0] === '!add') {
-            try {
+            } else if (args[0] === '!d') {
+                var result = sortOrder(args[1]);
+                personal.send({
+                    username: 'Freebie Sorter',
+                    content: `Linked Email: ${result[1]}`,
+                });
+            } else if (args[0] === '!add') {
                 personal.send({
                     username: 'Freebie Sorter',
                     content: `\`\`\`Account information\`\`\`\nEmail: \`\`${args[1]}\`\`\nDiscord: <@!${args[2]}>\nGroup: \`\`${args[3]}\`\``,
                 });
                 addRowToCSV(args[3], args[1], args[2]);
-            } catch (e) {
+            } else if (args[0] === `!count`) {
                 personal.send({
                     username: 'Freebie Sorter',
-                    content: `${e.message}`,
+                    content: `${args[1]} total accounts: \`\`${totalAccounts(args[1])}\`\``,
+                });
+            } else if (args[0] === `!list`) {
+                var userList = listAccounts(args[1]);
+                personal.send({
+                    username: 'Freebie Sorter',
+                    content: `${args[1]} list:\n\`\`${userList.join('\n').trim()}\`\`\n\nTotal Accounts: \`\`${userList.length}\`\``,
                 });
             }
+        } catch (e) {
+            personal.send({
+                username: 'Freebie Sorter',
+                content: `${e.message}`,
+            });
         }
     }
 })
@@ -169,6 +181,34 @@ function sortOrder(args) {
         }
     }
     return [0, 'User not found'];
+}
+
+function totalAccounts(group) {
+    var count = 0;
+    for (let i = 0; i < userSheet.length; i++) {
+        if (userSheet[i].group === group) {
+            count++;
+        }
+    }
+    return count;
+}
+
+function listAccounts(group) {
+    var list = [];
+    var count = 0;
+    if (group === 'all') {
+        for (let i = 0; i < userSheet.length; i++) {
+            list[i] = userSheet[i].email;
+        }
+    } else {
+        for (let i = 0; i < userSheet.length; i++) {
+            if (userSheet[i].group === group) {
+                count++;
+                list[count] = userSheet[i].email;
+            }
+        }
+    }
+    return list;
 }
 
 
@@ -245,8 +285,8 @@ function sendEmbed(client, discount, returnEmbed, discord, bot) {
             ])
     }
     filterEmbed.setImage(returnEmbed.thumbnail.url)
-    filterEmbed.setTimestamp()
     if (client === 'blaze') {
+        filterEmbed.setTimestamp()
         if (discount === '100.00%' || discount === '100%') {
             filterEmbed.setColor(8454016);
             console.log(`Blaze Free Checkout!`);
@@ -268,6 +308,7 @@ function sendEmbed(client, discount, returnEmbed, discord, bot) {
             })
         }
     } else if (client === 'personal') {
+        filterEmbed.setTimestamp()
         if (discount === '100.00%' || discount === '100%') {
             filterEmbed.setColor(8454016);
             blazeFree.send({
@@ -293,15 +334,17 @@ function sendEmbed(client, discount, returnEmbed, discord, bot) {
                 username: 'Checkout',
                 embeds: [filterEmbed.setTitle(`Checkout for Happy! :tada:`)],
             })
-        } else {
+        } else if (discord === '<@1>') {
             console.log('Checkout for Pia!');
             pia.send({
                 username: 'Checkout',
                 embeds: [filterEmbed.setTitle(`Checkout for Pia! :partying_face:`)],
             });
-            happy.send({
+        }
+        else {
+            jagdeep.send({
                 username: 'Checkout',
-                embeds: [filterEmbed.setTitle(`Checkout for Pia! :cry:`)],
+                embeds: [filterEmbed.setTitle(`Checkout for Jagdeep! :partying_face:`)],
             });
         }
     } else if (client === 'freebiehub') {
@@ -310,7 +353,9 @@ function sendEmbed(client, discount, returnEmbed, discord, bot) {
         freebieHub.send({
             username: 'Freebie Hub Checkout',
             content: `|| ${discord} ||`,
-            embeds: [filterEmbed.setTitle(`Checkout! :partying_face:`).setFooter(`Twitter | @TheFreebieHub | Powered by Skhinda`)]
+            embeds: [filterEmbed
+                .setTitle(`Checkout! :partying_face:`)
+                .setFooter({ text: `Twitter: @TheFreebieHub | Powered by Skhinda`, iconURL: 'https://assets.whop.com/cdn-cgi/image/width=64/https://assets.whop.com/bots/images/6256.original.png?1693661080' })]
         })
     }
 
