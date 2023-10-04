@@ -12,7 +12,6 @@ const token = process.env.TOKEN;
 const blazeFree = new WebhookClient({ id: process.env.BLAZE_FREE_ID, token: process.env.BLAZE_FREE_TOKEN });
 const blazePaid = new WebhookClient({ id: process.env.BLAZE_PAID_ID, token: process.env.BLAZE_PAID_TOKEN });
 const happy = new WebhookClient({ id: process.env.HAPPY_ID, token: process.env.HAPPY_TOKEN });
-const pia = new WebhookClient({ id: process.env.PIA_ID, token: process.env.PIA_TOKEN });
 const jagdeep = new WebhookClient({ id: process.env.JAGDEEP_ID, token: process.env.JAGDEEP_TOKEN });
 const freebieHub = new WebhookClient({ id: process.env.HUB_ID, token: process.env.HUB_TOKEN });
 const error = new WebhookClient({ id: process.env.ERROR_ID, token: process.env.ERROR_TOKEN });
@@ -145,6 +144,8 @@ client.on('messageCreate', (message) => {
                     username: 'Freebie Sorter',
                     content: `${args[1]} list:\n\`\`${userList.join('\n').trim()}\`\`\n\nTotal Accounts: \`\`${userList.length}\`\``,
                 });
+            } else if (args[0] === `!refresh`) {
+                parseCSV();
             }
         } catch (e) {
             personal.send({
@@ -334,14 +335,7 @@ function sendEmbed(client, discount, returnEmbed, discord, bot) {
                 username: 'Checkout',
                 embeds: [filterEmbed.setTitle(`Checkout for Happy! :tada:`)],
             })
-        } else if (discord === '<@1>') {
-            console.log('Checkout for Pia!');
-            pia.send({
-                username: 'Checkout',
-                embeds: [filterEmbed.setTitle(`Checkout for Pia! :partying_face:`)],
-            });
-        }
-        else {
+        } else {
             jagdeep.send({
                 username: 'Checkout',
                 embeds: [filterEmbed.setTitle(`Checkout for Jagdeep! :partying_face:`)],
